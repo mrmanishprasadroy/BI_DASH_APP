@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 conn_info = {
-    # 'host': '10.182.50.108',
-    'host': '10.18.1.80',
+    'host': '10.182.50.108',
+    # 'host': '10.18.1.80',
     'port': 1521,
     'user': 'JSWTPM',
     'psw': 'JSWTPM',
@@ -17,18 +17,19 @@ CONN_STR = '{user}/{psw}@{host}:{port}/{service}'.format(**conn_info)
 class DB:
 
     def __init__(self):
-
-        self.conn = cx_Oracle.connect(CONN_STR)
+        pass
+         # self.conn = cx_Oracle.connect(CONN_STR)
 
     def query(self, query):
         try:
-            df = pd.read_sql_query(con=self.conn, sql=query)
+            conn = cx_Oracle.connect(CONN_STR)
+            df = pd.read_sql_query(con=conn, sql=query)
             return df
         except cx_Oracle.DatabaseError as e:
             print(e)
-            self.conn.close()
+            conn.close()
         finally:
-            self.conn.close()
+            conn.close()
 
     def dict_to_df(self, query_result, date=True):
         items = {
@@ -76,6 +77,6 @@ class DB:
             query_result = self.query(query_text)
         except cx_Oracle.DatabaseError as e:
             print(e)
-        # result_set.set_index(['DTSTORE'], inplace=True)
+        query_result.set_index(['DTSTORE'], inplace=True)
         print(query_result)
         return query_result
