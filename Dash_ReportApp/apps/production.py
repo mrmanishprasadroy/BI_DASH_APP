@@ -80,9 +80,9 @@ def thickness_source(df):
 # function to perform date range filter
 def filter_data(df, start_date, end_date):
     if start_date is not None:
-        start_date = dt.strptime(start_date[:10], '%Y-%m-%d')
+        start_date = pd.to_datetime(start_date)
     if end_date is not None:
-        end_date = dt.strptime(end_date[:10], '%Y-%m-%d')
+        end_date = pd.to_datetime(end_date)
 
     df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
 
@@ -199,18 +199,55 @@ layout = [
 
     # table div
     html.Div(
-        id="production_table",
-        className="row",
-        style={
-            "maxHeight": "320px",
-            "overflowY": "scroll",
-            "padding": "8",
-            "marginTop": "5",
-            "backgroundColor": "white",
-            "border": "1px solid #C8D4E3",
-            "borderRadius": "3px"
+        [
 
-        },
+            html.Div(
+                id="alloy_thickness_table",
+                className="four columns",
+                style={
+                    "maxHeight": "320px",
+                    "overflowY": "scroll",
+                    "padding": "8",
+                    "marginTop": "5",
+                    "backgroundColor": "white",
+                    "border": "1px solid #C8D4E3",
+                    "borderRadius": "3px"
+
+                },
+            ),
+
+            html.Div(
+                id="width_thickness_table",
+                className="four columns",
+                style={
+                    "maxHeight": "320px",
+                    "overflowY": "scroll",
+                    "padding": "8",
+                    "marginTop": "5",
+                    "backgroundColor": "white",
+                    "border": "1px solid #C8D4E3",
+                    "borderRadius": "3px"
+
+                },
+            ),
+
+            html.Div(
+                id="exit_thickness_weight_table",
+                className="four columns",
+                style={
+                    "maxHeight": "320px",
+                    "overflowY": "scroll",
+                    "padding": "8",
+                    "marginTop": "5",
+                    "backgroundColor": "white",
+                    "border": "1px solid #C8D4E3",
+                    "borderRadius": "3px"
+
+                },
+            )
+        ],
+        className="row",
+        style={"marginTop": "5"},
 
     ),
 ]
@@ -228,7 +265,10 @@ def left_leads_indicator_callback(df, start_date, end_date):
     if start_date is not None:
         df = filter_data(df, start_date, end_date)
     coil_count = len(df)
-    return coil_count
+    if coil_count > 0:
+        return coil_count
+    else:
+        return 0
 
 
 # updates middle indicator based on df updates
@@ -257,8 +297,11 @@ def right_leads_indicator_callback(df, start_date, end_date):
     if start_date is not None:
         df = filter_data(df, start_date, end_date)
     coil_count = len(df)
-    tot_weight = df['EXITWEIGHTMEAS'].aggregate(sum)
-    return math.floor(tot_weight / coil_count)
+    if coil_count > 0:
+        tot_weight = df['EXITWEIGHTMEAS'].aggregate(sum)
+        return math.floor(tot_weight / coil_count)
+    else:
+        return 0
 
 
 # update pie chart figure df updates
@@ -271,9 +314,10 @@ def right_leads_indicator_callback(df, start_date, end_date):
 )
 def alloy_source_callback(status, df, start_date, end_date):
     df = pd.read_json(df, orient="split")
+    df['ALLOYCODE'] = df.ALLOYCODE.astype('category')
     if start_date is not None:
         df = filter_data(df, start_date, end_date)
-    allycode_stats = df.groupby('ALLOYCODE')['COILIDOUT'].describe().reset_index()
+    allycode_stats = df.groupby('ALLOYCODE')['EXITTHICK'].describe().reset_index()
     return alloy_source(allycode_stats)
 
 
@@ -287,9 +331,10 @@ def alloy_source_callback(status, df, start_date, end_date):
 )
 def width_source_callback(status, df, start_date, end_date):
     df = pd.read_json(df, orient="split")
+    df['ENTRYWIDTH'] = df.ENTRYWIDTH.astype('category')
     if start_date is not None:
         df = filter_data(df, start_date, end_date)
-    width_stats = df.groupby('ENTRYWIDTH')['COILIDOUT'].describe().reset_index()
+    width_stats = df.groupby('ENTRYWIDTH')['EXITTHICK'].describe().reset_index()
     return width_source(width_stats)
 
 
@@ -303,27 +348,133 @@ def width_source_callback(status, df, start_date, end_date):
 )
 def thickness_source_callback(value, df, start_date, end_date):
     df = pd.read_json(df, orient="split")
+   # df['EXITTHICK'] = df.EXITTHICK.astype('category')
     if start_date is not None:
         df = filter_data(df, start_date, end_date)
-    thickness_stats = df.groupby('EXITTHICK')['COILIDOUT'].describe().reset_index()
+    thickness_stats = df.groupby('EXITTHICK')['EXITWEIGHTMEAS'].describe().reset_index()
     thickness_stats = thickness_stats[thickness_stats['EXITTHICK'] <= value[1]]
     return thickness_source(thickness_stats)
 
 
 # update table based on drop down value and df updates
 @app.callback(
-    Output("production_table", "children"),
+    Output("alloy_thickness_table", "children"),
     [Input("production_df", "children"),
      Input("date-picker-range", "start_date"),
      Input("date-picker-range", "end_date")],
 )
-def leads_table_callback(df, start_date, end_date):
+def aleads_table_callback(df, start_date, end_date):
     df = pd.read_json(df, orient="split")
+    df['ALLOYCODE'] = df.ALLOYCODE.astype('category')
     df['DTDEPARTURE'] = pd.to_datetime(df['DTDEPARTURE'])
     df['DTSTARTROLL'] = pd.to_datetime(df['DTSTARTROLL'])
     df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
     if start_date is not None:
         df = filter_data(df, start_date, end_date)
+    df = df.groupby('ALLOYCODE')['EXITTHICK'].describe()
+    df = df.reset_index().rename(
+        columns={'ALLOYCODE': 'Alloy Code', 'count': 'Coils Count', 'min': 'Min. Thickness', 'mean': 'Avg. Thickness', 'max': 'Max. Thickness'})
+    df['Avg. Thickness'] = df['Avg. Thickness'].round(2)
+    df.drop(['std', '25%', '50%', '75%'], axis=1, inplace=True)
+    datatable = dash_table.DataTable(
+        columns=[{"name": i, "id": i} for i in df.columns],
+        data=df.to_dict("rows"),
+        n_fixed_rows=1,
+        # filtering=True,
+        sorting=True,
+        style_cell={'width': '150px', 'padding': '5px', 'textAlign': 'center'},
+        style_cell_conditional=[{
+            'if': {'row_index': 'odd'},
+            'backgroundColor': '#3D9970',
+        }] + [
+                                   {
+                                       'if': {'column_id': c},
+                                       'textAlign': 'left'
+                                   } for c in ['COILIDOUT', 'COILIDIN', 'ALLOYCODE']
+                               ],
+        style_header={
+            'backgroundColor': 'white',
+            'fontWeight': 'bold'
+        },
+        style_table={
+            'maxHeight': '280px',
+            'overflowY': 'scroll',
+            'border': 'thin lightgrey solid'
+        },
+    )
+    return datatable
+
+
+# update table based on drop down value and df updates
+@app.callback(
+    Output("width_thickness_table", "children"),
+    [Input("production_df", "children"),
+     Input("date-picker-range", "start_date"),
+     Input("date-picker-range", "end_date")],
+)
+def bleads_table_callback(df, start_date, end_date):
+    df = pd.read_json(df, orient="split")
+    df['ENTRYWIDTH'] = df.ENTRYWIDTH.astype('category')
+    df['DTDEPARTURE'] = pd.to_datetime(df['DTDEPARTURE'])
+    df['DTSTARTROLL'] = pd.to_datetime(df['DTSTARTROLL'])
+    df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
+    if start_date is not None:
+        df = filter_data(df, start_date, end_date)
+    df = df.groupby('ENTRYWIDTH')['EXITTHICK'].describe()
+    df = df.reset_index().rename(
+        columns={'ENTRYWIDTH': 'Entry Width', 'count': 'Coils Count', 'min': 'Min. Thickness', 'mean': 'Avg. Thickness', 'max': 'Max. Thickness'})
+    df['Avg. Thickness'] = df['Avg. Thickness'].round(2)
+    df.drop(['std', '25%', '50%', '75%'], axis=1, inplace=True)
+    datatable = dash_table.DataTable(
+        columns=[{"name": i, "id": i} for i in df.columns],
+        data=df.to_dict("rows"),
+        n_fixed_rows=1,
+        # filtering=True,
+        sorting=True,
+        style_cell={'width': '150px', 'padding': '5px', 'textAlign': 'center'},
+        style_cell_conditional=[{
+            'if': {'row_index': 'odd'},
+            'backgroundColor': '#3D9970',
+        }] + [
+                                   {
+                                       'if': {'column_id': c},
+                                       'textAlign': 'left'
+                                   } for c in ['COILIDOUT', 'COILIDIN', 'ALLOYCODE']
+                               ],
+        style_header={
+            'backgroundColor': 'white',
+            'fontWeight': 'bold'
+        },
+        style_table={
+            'maxHeight': '280px',
+            'overflowY': 'scroll',
+            'border': 'thin lightgrey solid'
+        },
+    )
+    return datatable
+
+
+# update table based on drop down value and df updates
+@app.callback(
+    Output("exit_thickness_weight_table", "children"),
+    [Input("production_df", "children"),
+     Input("date-picker-range", "start_date"),
+     Input("date-picker-range", "end_date")],
+)
+def cleads_table_callback(df, start_date, end_date):
+    df = pd.read_json(df, orient="split")
+    df['EXITTHICK'] = df.EXITTHICK.astype('category')
+    df['DTDEPARTURE'] = pd.to_datetime(df['DTDEPARTURE'])
+    df['DTSTARTROLL'] = pd.to_datetime(df['DTSTARTROLL'])
+    df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
+    if start_date is not None:
+        df = filter_data(df, start_date, end_date)
+    df = df.groupby('EXITTHICK')['EXITWEIGHTMEAS'].describe()
+    df = df.reset_index().rename(
+        columns={'EXITTHICK': 'Ext thickness', 'count': 'Coils Count', 'min': 'Min. Weight', 'mean': 'Avg. Weight', 'max': 'Max. Weight'})
+    df['Avg. Weight'] = df['Avg. Weight'].round(2)
+    df['Ext thickness'] = df['Ext thickness'].round(2)
+    df.drop(['std', '25%', '50%', '75%'], axis=1, inplace=True)
     datatable = dash_table.DataTable(
         columns=[{"name": i, "id": i} for i in df.columns],
         data=df.to_dict("rows"),

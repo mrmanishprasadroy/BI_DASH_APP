@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 conn_info = {
-    'host': '10.182.50.108',
-    # 'host': '10.18.1.80',
+    # 'host': '10.182.50.108',
+    'host': '10.18.1.80',
     'port': 1521,
     'user': 'JSWTPM',
     'psw': 'JSWTPM',
@@ -63,8 +63,8 @@ class DB:
         query_result = query_result.replace('', np.nan)
         mean_weight = query_result['EXITWEIGHTMEAS'].mean(skipna=True)
         query_result.loc[query_result.EXITWEIGHTMEAS == 0, 'EXITWEIGHTMEAS'] = mean_weight
-        query_result['EXITTHICK'] = query_result['EXITTHICK'].apply(lambda x: np.round(x, decimals=2))
         query_result['EXITWEIGHTMEAS'] = query_result['EXITWEIGHTMEAS'].apply(lambda x: np.round(x, decimals=2))
+        query_result.fillna(method='ffill', inplace=True)
         print(query_result.head())
         return query_result
 
@@ -78,5 +78,8 @@ class DB:
         except cx_Oracle.DatabaseError as e:
             print(e)
         query_result.set_index(['DTSTORE'], inplace=True)
-        print(query_result)
+        query_result['PLANT'] = query_result.PLANT.map({1: 'PL', 2: 'TCM', 3: 'PLTCM'})
+        query_result['DURATION'] = pd.to_datetime(query_result['DTEND']) - pd.to_datetime(query_result['DTSTART'])
+        query_result['DURATION'] = query_result['DURATION']/np.timedelta64(1, 'm')
+        print(query_result.head())
         return query_result
