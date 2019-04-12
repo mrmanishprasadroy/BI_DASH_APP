@@ -191,7 +191,3 @@ def by_date_source_callback(df):
     return figure
 
 
-#@app.callback(Output("loading-output-1", "children"), [Input("input-1", "value")])
-#def input_triggers_spinner(value):
- #   time.sleep(1)
- #   return value
