@@ -365,7 +365,7 @@ def thickness_source_callback(value, df, n_clicks,  start_date, end_date):
 )
 def aleads_table_callback(df, n_clicks,  start_date, end_date):
     df = pd.read_json(df, orient="split")
-    df['ALLOYCODE'] = df.ALLOYCODE.astype('category')
+   # df['ALLOYCODE'] = df.ALLOYCODE.astype('category')
     df['DTDEPARTURE'] = pd.to_datetime(df['DTDEPARTURE'])
     df['DTSTARTROLL'] = pd.to_datetime(df['DTSTARTROLL'])
     df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
@@ -414,7 +414,7 @@ def aleads_table_callback(df, n_clicks,  start_date, end_date):
 )
 def bleads_table_callback(df, n_clicks,  start_date, end_date):
     df = pd.read_json(df, orient="split")
-    df['ENTRYWIDTH'] = df.ENTRYWIDTH.astype('category')
+    #df['ENTRYWIDTH'] = df.ENTRYWIDTH.astype('category')
     df['DTDEPARTURE'] = pd.to_datetime(df['DTDEPARTURE'])
     df['DTSTARTROLL'] = pd.to_datetime(df['DTSTARTROLL'])
     df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
@@ -463,7 +463,7 @@ def bleads_table_callback(df, n_clicks,  start_date, end_date):
 )
 def cleads_table_callback(df, n_clicks,  start_date, end_date):
     df = pd.read_json(df, orient="split")
-    df['EXITTHICK'] = df.EXITTHICK.astype('category')
+    #df['EXITTHICK'] = df.EXITTHICK.astype('category')
     df['DTDEPARTURE'] = pd.to_datetime(df['DTDEPARTURE'])
     df['DTSTARTROLL'] = pd.to_datetime(df['DTSTARTROLL'])
     df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
