@@ -197,7 +197,7 @@ layout = [
         style={"marginTop": "5"},
 
     ),
-
+    html.Div(id="time_df", style={'display': "none"}),
     # table div
     html.Div(
         [
@@ -254,17 +254,28 @@ layout = [
 ]
 
 
+@app.callback(Output('time_df', 'children'),
+              [Input("production_df", "children"), Input('submit-button', 'n_clicks')],
+              [State("date-picker-range", "start_date"),
+               State("date-picker-range", "end_date")])
+def update_output(df, n_clicks, start_date, end_date):
+    df = pd.read_json(df, orient="split")
+    if n_clicks > 0:
+        df = filter_data(df, start_date, end_date)
+    else:
+        pass
+    return df.to_json(orient="split")
+
+
 # updates left indicator based on df updates
 @app.callback(
     Output("left_leads_indicator", "children"),
-    [Input("production_df", "children"), Input('submit-button', 'n_clicks')],
+    [Input("time_df", "children"), Input('submit-button', 'n_clicks')],
     [State("date-picker-range", "start_date"),
      State("date-picker-range", "end_date")]
 )
 def left_leads_indicator_callback(df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
-    if start_date is not None:
-        df = filter_data(df, start_date, end_date)
     coil_count = len(df)
     if coil_count > 0:
         return coil_count
@@ -275,28 +286,24 @@ def left_leads_indicator_callback(df, n_clicks, start_date, end_date):
 # updates middle indicator based on df updates
 @app.callback(
     Output("middle_leads_indicator", "children"),
-    [Input("production_df", "children"), Input('submit-button', 'n_clicks')],
+    [Input("time_df", "children"), Input('submit-button', 'n_clicks')],
     [State("date-picker-range", "start_date"),
      State("date-picker-range", "end_date")]
 )
 def middle_leads_indicator_callback(df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
-    if start_date is not None:
-        df = filter_data(df, start_date, end_date)
     return math.floor((df['EXITWEIGHTMEAS'].aggregate(sum)) / 1000)
 
 
 # updates right indicator based on df updates
 @app.callback(
     Output("right_leads_indicator", "children"),
-    [Input("production_df", "children"), Input('submit-button', 'n_clicks')],
+    [Input("time_df", "children"), Input('submit-button', 'n_clicks')],
     [State("date-picker-range", "start_date"),
      State("date-picker-range", "end_date")]
 )
-def right_leads_indicator_callback(df, n_clicks,  start_date, end_date):
+def right_leads_indicator_callback(df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
-    if start_date is not None:
-        df = filter_data(df, start_date, end_date)
     coil_count = len(df)
     if coil_count > 0:
         tot_weight = df['EXITWEIGHTMEAS'].aggregate(sum)
@@ -308,16 +315,12 @@ def right_leads_indicator_callback(df, n_clicks,  start_date, end_date):
 # update pie chart figure df updates
 @app.callback(
     Output("alloy_source", "figure"),
-    [Input('submit-button', 'n_clicks')],
-    [State("production_df", "children"),
-     State("date-picker-range", "start_date"),
+    [Input('submit-button', 'n_clicks'), Input("time_df", "children")],
+    [State("date-picker-range", "start_date"),
      State("date-picker-range", "end_date")]
 )
 def alloy_source_callback(n_clicks, df, start_date, end_date):
     df = pd.read_json(df, orient="split")
-   # df['ALLOYCODE'] = df.ALLOYCODE.astype('category')
-    if start_date is not None:
-        df = filter_data(df, start_date, end_date)
     allycode_stats = df.groupby('ALLOYCODE')['EXITTHICK'].describe().reset_index()
     return alloy_source(allycode_stats)
 
@@ -326,15 +329,12 @@ def alloy_source_callback(n_clicks, df, start_date, end_date):
 @app.callback(
     Output("width_source", "figure"),
     [Input("converted_leads_dropdown", "value"),
-     Input("production_df", "children"), Input('submit-button', 'n_clicks')],
+     Input("time_df", "children"), Input('submit-button', 'n_clicks')],
     [State("date-picker-range", "start_date"),
      State("date-picker-range", "end_date")]
 )
-def width_source_callback(status, df, n_clicks,  start_date, end_date):
+def width_source_callback(status, df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
-    # df['ENTRYWIDTH'] = df.ENTRYWIDTH.astype('category')
-    if start_date is not None:
-        df = filter_data(df, start_date, end_date)
     width_stats = df.groupby('ENTRYWIDTH')['EXITTHICK'].describe().reset_index()
     return width_source(width_stats)
 
@@ -343,14 +343,12 @@ def width_source_callback(status, df, n_clicks,  start_date, end_date):
 @app.callback(
     Output("thickness_leads", "figure"),
     [Input("thicknessslider", "value"),
-     Input("production_df", "children"), Input('submit-button', 'n_clicks')],
+     Input("time_df", "children"), Input('submit-button', 'n_clicks')],
     [State("date-picker-range", "start_date"),
      State("date-picker-range", "end_date")]
 )
-def thickness_source_callback(value, df, n_clicks,  start_date, end_date):
+def thickness_source_callback(value, df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
-    if start_date is not None:
-        df = filter_data(df, start_date, end_date)
     thickness_stats = df.groupby('EXITTHICK')['EXITWEIGHTMEAS'].describe().reset_index()
     thickness_stats = thickness_stats[thickness_stats['EXITTHICK'] <= value[1]]
     return thickness_source(thickness_stats)
@@ -359,21 +357,16 @@ def thickness_source_callback(value, df, n_clicks,  start_date, end_date):
 # update table based on drop down value and df updates
 @app.callback(
     Output("alloy_thickness_table", "children"),
-    [Input("production_df", "children"), Input('submit-button', 'n_clicks')],
+    [Input("time_df", "children"), Input('submit-button', 'n_clicks')],
     [State("date-picker-range", "start_date"),
      State("date-picker-range", "end_date")],
 )
-def aleads_table_callback(df, n_clicks,  start_date, end_date):
+def aleads_table_callback(df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
-   # df['ALLOYCODE'] = df.ALLOYCODE.astype('category')
-    df['DTDEPARTURE'] = pd.to_datetime(df['DTDEPARTURE'])
-    df['DTSTARTROLL'] = pd.to_datetime(df['DTSTARTROLL'])
-    df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
-    if start_date is not None:
-        df = filter_data(df, start_date, end_date)
     df = df.groupby('ALLOYCODE')['EXITTHICK'].describe()
     df = df.reset_index().rename(
-        columns={'ALLOYCODE': 'Alloy Code', 'count': 'Coils Count', 'min': 'Min. Thickness', 'mean': 'Avg. Thickness', 'max': 'Max. Thickness'})
+        columns={'ALLOYCODE': 'Alloy Code', 'count': 'Coils Count', 'min': 'Min. Thickness', 'mean': 'Avg. Thickness',
+                 'max': 'Max. Thickness'})
     df['Avg. Thickness'] = df['Avg. Thickness'].round(2)
     df.drop(['std', '25%', '50%', '75%'], axis=1, inplace=True)
     datatable = dash_table.DataTable(
@@ -408,21 +401,16 @@ def aleads_table_callback(df, n_clicks,  start_date, end_date):
 # update table based on drop down value and df updates
 @app.callback(
     Output("width_thickness_table", "children"),
-    [Input("production_df", "children"), Input('submit-button', 'n_clicks')],
+    [Input("time_df", "children"), Input('submit-button', 'n_clicks')],
     [State("date-picker-range", "start_date"),
      State("date-picker-range", "end_date")],
 )
-def bleads_table_callback(df, n_clicks,  start_date, end_date):
+def bleads_table_callback(df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
-    #df['ENTRYWIDTH'] = df.ENTRYWIDTH.astype('category')
-    df['DTDEPARTURE'] = pd.to_datetime(df['DTDEPARTURE'])
-    df['DTSTARTROLL'] = pd.to_datetime(df['DTSTARTROLL'])
-    df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
-    if start_date is not None:
-        df = filter_data(df, start_date, end_date)
     df = df.groupby('ENTRYWIDTH')['EXITTHICK'].describe()
     df = df.reset_index().rename(
-        columns={'ENTRYWIDTH': 'Entry Width', 'count': 'Coils Count', 'min': 'Min. Thickness', 'mean': 'Avg. Thickness', 'max': 'Max. Thickness'})
+        columns={'ENTRYWIDTH': 'Entry Width', 'count': 'Coils Count', 'min': 'Min. Thickness', 'mean': 'Avg. Thickness',
+                 'max': 'Max. Thickness'})
     df['Avg. Thickness'] = df['Avg. Thickness'].round(2)
     df.drop(['std', '25%', '50%', '75%'], axis=1, inplace=True)
     datatable = dash_table.DataTable(
@@ -457,21 +445,16 @@ def bleads_table_callback(df, n_clicks,  start_date, end_date):
 # update table based on drop down value and df updates
 @app.callback(
     Output("exit_thickness_weight_table", "children"),
-    [Input("production_df", "children"), Input('submit-button', 'n_clicks')],
+    [Input("time_df", "children"), Input('submit-button', 'n_clicks')],
     [State("date-picker-range", "start_date"),
      State("date-picker-range", "end_date")],
 )
-def cleads_table_callback(df, n_clicks,  start_date, end_date):
+def cleads_table_callback(df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
-    #df['EXITTHICK'] = df.EXITTHICK.astype('category')
-    df['DTDEPARTURE'] = pd.to_datetime(df['DTDEPARTURE'])
-    df['DTSTARTROLL'] = pd.to_datetime(df['DTSTARTROLL'])
-    df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
-    if start_date is not None:
-        df = filter_data(df, start_date, end_date)
     df = df.groupby('EXITTHICK')['EXITWEIGHTMEAS'].describe()
     df = df.reset_index().rename(
-        columns={'EXITTHICK': 'Ext thickness', 'count': 'Coils Count', 'min': 'Min. Weight', 'mean': 'Avg. Weight', 'max': 'Max. Weight'})
+        columns={'EXITTHICK': 'Ext thickness', 'count': 'Coils Count', 'min': 'Min. Weight', 'mean': 'Avg. Weight',
+                 'max': 'Max. Weight'})
     df['Avg. Weight'] = df['Avg. Weight'].round(2)
     df['Ext thickness'] = df['Ext thickness'].round(2)
     df.drop(['std', '25%', '50%', '75%'], axis=1, inplace=True)
@@ -503,3 +486,4 @@ def cleads_table_callback(df, n_clicks,  start_date, end_date):
     )
 
     return datatable
+
