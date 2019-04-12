@@ -33,3 +33,6 @@ packages/
 *.idea
 *.ipynb
 *__pycache__
+*.pdf
+*.pptx
+*.png
