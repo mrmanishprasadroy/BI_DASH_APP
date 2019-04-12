@@ -15,6 +15,26 @@ import plotly.plotly as py
 from plotly import graph_objs as go
 from datetime import datetime as dt
 from app import app, indicator, millify, df_to_table, DB
+import time
+
+
+def date_source(df):
+    types = df["DATE"]
+    values = df["mean"]
+    data = [go.Bar(x=types, y=values,
+                   orientation="v")]  # x could be any column value since its a count
+
+    layout = go.Layout(
+        barmode="stack",
+        margin=dict(l=210, r=25, b=20, t=0, pad=4),
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+    )
+
+    return {"data": data, "layout": layout}
+
+
+global_df = DB.get_stoptime()
 
 layout = [
 
@@ -43,7 +63,7 @@ layout = [
                 [
                     html.P("Coils count with Alloy Code"),
                     dcc.Graph(
-                        id="alloy_source",
+                        id="date_analysis",
                         style={"height": "90%", "width": "98%"},
                         config=dict(displayModeBar=False),
                     ),
@@ -51,14 +71,19 @@ layout = [
                 className="twelve columns chart_div"
             ),
 
+            # Hidden div inside the app that stores the intermediate value
+            html.Div(id='intermediate-value', style={'display': 'none'}),
+
         ],
         className="row",
         style={"marginTop": "5"},
 
     ),
+    dcc.Input(id="input-1", value='Input triggers local spinner', style={'display': 'none'}),
+    # dcc.Loading(id="loading-1", children=[html.Div(id="loading-output-1")], type="default"),
 
     # table div
-    html.Div(
+    dcc.Loading(id='table-view', children=html.Div(
         id="stop_table",
         className="row",
         style={
@@ -71,11 +96,22 @@ layout = [
             "borderRadius": "3px"
 
         },
-
-    ),
-
+    ), type="default"),
 
 ]
+
+
+# update hidden div data block
+@app.callback(
+    Output('intermediate-value', 'children'),
+    [Input("stoptime_df", "children")])
+def store_data(df):
+    df = pd.read_json(df, orient="split")
+    cleaned_df = df.groupby('PLANT')['DURATION'].describe().reset_index()
+    dataset = {
+        'df_1': cleaned_df.to_json(orient='split'),
+    }
+    return json.dumps(dataset)
 
 
 # updates left indicator based on df updates
@@ -86,7 +122,7 @@ layout = [
 def left_leads_indicator_callback(df):
     df = pd.read_json(df, orient="split")
     df_stats = df.groupby('PLANT')['DURATION'].sum()
-    return np.ceil(df_stats[0])
+    return np.ceil(df_stats[1])
 
 
 # updates middle  indicator based on df updates
@@ -97,7 +133,7 @@ def left_leads_indicator_callback(df):
 def left_leads_indicator_callback(df):
     df = pd.read_json(df, orient="split")
     df_stats = df.groupby('PLANT')['DURATION'].sum()
-    return np.ceil(df_stats[1])
+    return np.ceil(df_stats[2])
 
 
 # updates Right  indicator based on df updates
@@ -108,17 +144,17 @@ def left_leads_indicator_callback(df):
 def left_leads_indicator_callback(df):
     df = pd.read_json(df, orient="split")
     df_stats = df.groupby('PLANT')['DURATION'].sum()
-    return np.ceil(df_stats[2])
+    return np.ceil(df_stats[3])
 
 
 # update table based on drop down value and df updates
 @app.callback(
     Output("stop_table", "children"),
-    [Input("stoptime_df", "children")],
+    [Input("stoptime_df", "children"), Input("input-1", "value")],
 )
-def leads_table_callback(df):
+def leads_table_callback(df, value):
     df = pd.read_json(df, orient="split")
-    df = df.groupby('PLANT')['DURATION'].describe().reset_index()
+    df = global_df.groupby('DATE')['DURATION'].describe().reset_index()
 
     datatable = dash_table.DataTable(
         columns=[{"name": i, "id": i} for i in df.columns],
@@ -143,3 +179,19 @@ def leads_table_callback(df):
     )
     return datatable
 
+
+# update pie chart figure df updates
+@app.callback(
+    Output("date_analysis", "figure"),
+    [Input("intermediate-value", "children")]
+)
+def by_date_source_callback(df):
+    df = global_df.groupby('DATE')['DURATION'].describe().reset_index()
+    figure = date_source(df)
+    return figure
+
+
+#@app.callback(Output("loading-output-1", "children"), [Input("input-1", "value")])
+#def input_triggers_spinner(value):
+ #   time.sleep(1)
+ #   return value

@@ -77,9 +77,13 @@ class DB:
             query_result = self.query(query_text)
         except cx_Oracle.DatabaseError as e:
             print(e)
-        query_result.set_index(['DTSTORE'], inplace=True)
-        query_result['PLANT'] = query_result.PLANT.map({1: 'PL', 2: 'TCM', 3: 'PLTCM'})
+        # query_result.set_index(['DTSTORE'], inplace=True)
+        # query_result['PLANT'] = query_result.PLANT.map({1: 'PL', 2: 'TCM', 3: 'PLTCM'})
         query_result['DURATION'] = pd.to_datetime(query_result['DTEND']) - pd.to_datetime(query_result['DTSTART'])
         query_result['DURATION'] = query_result['DURATION']/np.timedelta64(1, 'm')
+        query_result['DATE'] = query_result.DTSTORE.dt.date
+        query_result['YEAR'] = query_result.DTSTORE.dt.year
+        query_result['MONTH'] = query_result.DTSTORE.dt.month
+        query_result['HOUR'] = query_result.DTSTORE.dt.hour
         print(query_result.head())
         return query_result

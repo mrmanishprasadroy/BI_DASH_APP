@@ -14,6 +14,7 @@ import plotly.plotly as py
 from plotly import graph_objs as go
 from datetime import datetime as dt
 from app import app, indicator, millify, df_to_table, DB
+import time
 
 
 # returns pie chart that shows coils per alloycode
@@ -501,4 +502,5 @@ def cleads_table_callback(df, start_date, end_date):
             'border': 'thin lightgrey solid'
         },
     )
+
     return datatable

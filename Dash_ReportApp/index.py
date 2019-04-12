@@ -34,7 +34,7 @@ app.layout = html.Div(
                 style={"height": "20", "verticalAlign": "middle"},
                 children=[
                     dcc.Tab(label="Production", value="production_tab"),
-                    dcc.Tab(label="Coil Report", value="coilreport_tab"),
+                   # dcc.Tab(label="Coil Report", value="coilreport_tab"),
                     dcc.Tab(id="stoptime_tab", label="Stop Times", value="stoptime_tab"),
                 ],
                 value="production_tab",
@@ -70,4 +70,4 @@ def render_content(tab):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(host='10.182.10.162', debug=True)
