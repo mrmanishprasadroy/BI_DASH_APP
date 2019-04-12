@@ -61,7 +61,7 @@ layout = [
         [
             html.Div(
                 [
-                    html.P("Coils count with Alloy Code"),
+                    html.P("Per Day Avg Delay"),
                     dcc.Graph(
                         id="date_analysis",
                         style={"height": "90%", "width": "98%"},
