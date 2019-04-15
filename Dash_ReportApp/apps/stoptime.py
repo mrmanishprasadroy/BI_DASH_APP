@@ -1,22 +1,15 @@
 # -*- coding: utf-8 -*-
-import math
-import json
-from datetime import date
-import dateutil.parser
 
-import pandas as pd
-import numpy as np
-import flask
-import dash_table
-from dash.dependencies import Input, Output, State
+from datetime import datetime as dt
+
 import dash_core_components as dcc
 import dash_html_components as html
-import plotly.plotly as py
+import dash_table
+import numpy as np
+import pandas as pd
+from app import app, indicator, DB
+from dash.dependencies import Input, Output, State
 from plotly import graph_objs as go
-from datetime import datetime as dt
-from app import app, indicator, millify, df_to_table, DB
-import time
-
 
 
 def date_source(df):
@@ -38,6 +31,24 @@ def date_source(df):
 global_df = DB.get_stoptime()
 
 layout = [
+
+    html.Div(
+        [
+            html.Div(
+                dcc.DatePickerRange(
+                    id='date-range',
+                    min_date_allowed=dt(2017, 8, 5),
+                    max_date_allowed=dt.now(),
+                    initial_visible_month=dt.now(),
+                    end_date=dt.now()
+                ),
+                className="four columns",
+            ),
+            html.Div(html.Button(id='submit-button', n_clicks=0, children='Submit'), className="two columns"),
+        ],
+        className="row",
+        style={"marginBottom": "10"},
+    ),
 
     # indicators row div
     html.Div(
@@ -81,6 +92,7 @@ layout = [
 
     ),
     dcc.Input(id="input-1", value='Input triggers local spinner', style={'display': 'none'}),
+    html.Div(id="parttime_df", style={'display': "none"}),
     # dcc.Loading(id="loading-1", children=[html.Div(id="loading-output-1")], type="default"),
 
     # table div
@@ -104,23 +116,30 @@ layout = [
 
 # update hidden div data block
 @app.callback(
-    Output('intermediate-value', 'children'),
-    [Input("stoptime_df", "children")])
-def store_data(df):
+    Output('parttime_df', 'children'),
+    [Input("stoptime_df", "children"), Input('submit-button', 'n_clicks')],
+    [State("date-range", "start_date"),
+     State("date-range", "end_date")]
+)
+def store_data(df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
-    cleaned_df = df.groupby('PLANT')['DURATION'].describe().reset_index()
-    dataset = {
-        'df_1': cleaned_df.to_json(orient='split'),
-    }
-    return json.dumps(dataset)
+    if n_clicks > 0:
+        df_1 = df.set_index('DATE')
+        df = df_1.loc[start_date:end_date]
+        cleaned_df = df.reset_index()
+    else:
+        cleaned_df = df
+    return cleaned_df.to_json(orient="split")
 
 
 # updates left indicator based on df updates
 @app.callback(
     Output("left_PL_indicator", "children"),
-    [Input("stoptime_df", "children")]
+    [Input("parttime_df", "children"), Input('submit-button', 'n_clicks')],
+    [State("date-range", "start_date"),
+     State("date-range", "end_date")]
 )
-def left_leads_indicator_callback(df):
+def left_leads_indicator_callback(df, n_clicks,start_date, end_date):
     df = pd.read_json(df, orient="split")
     df_stats = df.groupby('PLANT')['DURATION'].sum()
     return np.ceil(df_stats[1])
@@ -129,9 +148,11 @@ def left_leads_indicator_callback(df):
 # updates middle  indicator based on df updates
 @app.callback(
     Output("middle_TCM_indicator", "children"),
-    [Input("stoptime_df", "children")]
+    [Input("parttime_df", "children"), Input('submit-button', 'n_clicks')],
+    [State("date-range", "start_date"),
+     State("date-range", "end_date")]
 )
-def left_leads_indicator_callback(df):
+def left_leads_indicator_callback(df, n_clicks,start_date, end_date):
     df = pd.read_json(df, orient="split")
     df_stats = df.groupby('PLANT')['DURATION'].sum()
     return np.ceil(df_stats[2])
@@ -140,9 +161,11 @@ def left_leads_indicator_callback(df):
 # updates Right  indicator based on df updates
 @app.callback(
     Output("right_PLTCM_indicator", "children"),
-    [Input("stoptime_df", "children")]
+    [Input("parttime_df", "children"), Input('submit-button', 'n_clicks')],
+    [State("date-range", "start_date"),
+     State("date-range", "end_date")]
 )
-def left_leads_indicator_callback(df):
+def left_leads_indicator_callback(df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
     df_stats = df.groupby('PLANT')['DURATION'].sum()
     return np.ceil(df_stats[3])
@@ -151,11 +174,13 @@ def left_leads_indicator_callback(df):
 # update table based on drop down value and df updates
 @app.callback(
     Output("stop_table", "children"),
-    [Input("stoptime_df", "children"), Input("input-1", "value")],
+    [Input("parttime_df", "children"), Input("input-1", "value"), Input('submit-button', 'n_clicks')],
+    [State("date-range", "start_date"),
+     State("date-range", "end_date")]
 )
-def leads_table_callback(df, value):
+def leads_table_callback(df, value, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
-    df = global_df.groupby('DATE')['DURATION'].describe().reset_index()
+    df = df.groupby('DATE')['DURATION'].describe().reset_index()
 
     datatable = dash_table.DataTable(
         columns=[{"name": i, "id": i} for i in df.columns],
@@ -181,13 +206,16 @@ def leads_table_callback(df, value):
     return datatable
 
 
-# update pie chart figure df updates
+# update Bar chart figure df updates
 @app.callback(
     Output("date_analysis", "figure"),
-    [Input("intermediate-value", "children")]
+    [Input("parttime_df", "children"), Input('submit-button', 'n_clicks')],
+    [State("date-range", "start_date"),
+     State("date-range", "end_date")]
 )
-def by_date_source_callback(df):
-    df = global_df.groupby('DATE')['DURATION'].describe().reset_index()
+def by_date_source_callback(df, n_clicks, start_date, end_date):
+    df = pd.read_json(df, orient="split")
+    df = df.groupby('DATE')['DURATION'].describe().reset_index()
     figure = date_source(df)
     return figure
 
