@@ -50,7 +50,7 @@ class DB:
                         round(PT.EXITTHICK,2) as EXITTHICK , OT.ENTRYWIDTH,PT.ENTRYDIAMPDI,PT.EXITWEIGHTCALC as EXITWEIGHTMEAS,
                         TO_CHAR(FROM_TZ(PT.DTWELDED, 'UTC') AT TIME ZONE SESSIONTIMEZONE, 'DD.MM.YY hh24:mi') AS DTSTARTROLL,
                         TO_CHAR(FROM_TZ(PT.DTDEPARTURE, 'UTC') AT TIME ZONE SESSIONTIMEZONE, 'DD.MM.YY hh24:mi') AS DTDEPARTURE,
-                        TO_CHAR(FROM_TZ(PT.DTENDROLLING, 'UTC') AT TIME ZONE SESSIONTIMEZONE, 'DD.MM.YY hh24:mi') AS DTENDROLLING,
+                        TO_CHAR(FROM_TZ(PT.DTENDROLLING, 'UTC') AT TIME ZONE SESSIONTIMEZONE, 'MM.DD.YY hh24:mi') AS DTENDROLLING,
                         (SELECT RZT.LENGTHPHASEEXIT FROM RESULT_ZONE_TAB RZT WHERE COILIDOUT = PT.COILIDOUT AND NZONE = 1) AS LENGTHPHASEEXIT,
                         (SELECT RZT.LENGTHTHICKTOL FROM RESULT_ZONE_TAB RZT WHERE COILIDOUT = PT.COILIDOUT AND NZONE = 1) AS LENGTHTHICKTOL
                         FROM PRODUCTION_TAB PT, ORDER_TAB OT WHERE PT.COILIDIN_1 = OT.COILID AND PT.ALLOYCODE = OT.ALLOYCODE
@@ -65,6 +65,7 @@ class DB:
         query_result.loc[query_result.EXITWEIGHTMEAS == 0, 'EXITWEIGHTMEAS'] = mean_weight
         query_result['EXITWEIGHTMEAS'] = query_result['EXITWEIGHTMEAS'].apply(lambda x: np.round(x, decimals=2))
         query_result.fillna(method='ffill', inplace=True)
+        # query_result['Date'] = query_result['DTDEPARTURE'].dt.date
         print(query_result.head())
         return query_result
 

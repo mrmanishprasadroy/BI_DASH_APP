@@ -18,6 +18,7 @@ from app import app, indicator, millify, df_to_table, DB
 import time
 
 
+
 def date_source(df):
     types = df["DATE"]
     values = df["mean"]

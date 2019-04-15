@@ -2,7 +2,7 @@
 import math
 import json
 import dateutil.parser
-
+import numpy as np
 import pandas as pd
 import flask
 import dash
@@ -93,25 +93,28 @@ def filter_data(df, start_date, end_date):
     return df
 
 
+# Bar Chart for Weight Analysis
+def date_weight_source(df):
+    types = df["Date"]
+    values = np.round(df["EXITWEIGHTMEAS"])
+    data = [go.Bar(x=types, y=values,
+                   orientation="v")]  # x could be any column value since its a count
+
+    layout = go.Layout(
+        barmode="stack",
+        margin=dict(l=210, r=25, b=20, t=0, pad=4),
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+    )
+
+    return {"data": data, "layout": layout}
+
+
 layout = [
 
     # top controls
     html.Div(
         [
-            html.Div(
-                dcc.Dropdown(
-                    id="converted_leads_dropdown",
-                    options=[
-                        {"label": "All", "value": "A"},
-                        {"label": "By day", "value": "D"},
-                        {"label": "By week", "value": "W-MON"},
-                        {"label": "By month", "value": "M"},
-                    ],
-                    value="A",
-                    clearable=False,
-                ),
-                className="two columns",
-            ),
             html.Div(
                 dcc.DatePickerRange(
                     id='date-picker-range',
@@ -120,7 +123,7 @@ layout = [
                     initial_visible_month=dt.now(),
                     end_date=dt.now()
                 ),
-                className="two columns",
+                className="four columns",
             ),
             html.Div(html.Button(id='submit-button', n_clicks=0, children='Submit'), className="two columns"),
             html.Div(
@@ -154,6 +157,25 @@ layout = [
             ),
         ],
         className="row",
+    ),
+
+    # charts row div for daily weight Analysis
+    html.Div(
+        [
+            html.Div(
+                [
+                    html.P("Daily Production Weight Analysis"),
+                    dcc.Graph(
+                        id="daily_weight_source",
+                        style={"height": "90%", "width": "98%"},
+                        config=dict(displayModeBar=False),
+                    ),
+                ],
+                className="twelve columns chart_div"
+            ),
+        ],
+        className="row",
+        style={"marginTop": "5"}
     ),
     # charts row div
     html.Div(
@@ -260,6 +282,8 @@ layout = [
                State("date-picker-range", "end_date")])
 def update_output(df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
+    df['DTENDROLLING'] = pd.to_datetime(df['DTENDROLLING'])
+    df['Date'] = df.DTENDROLLING.dt.date
     if n_clicks > 0:
         df = filter_data(df, start_date, end_date)
     else:
@@ -325,15 +349,28 @@ def alloy_source_callback(n_clicks, df, start_date, end_date):
     return alloy_source(allycode_stats)
 
 
-# update pie chart figure df updates
+# update bar chart figure df updates
 @app.callback(
-    Output("width_source", "figure"),
-    [Input("converted_leads_dropdown", "value"),
-     Input("time_df", "children"), Input('submit-button', 'n_clicks')],
+    Output("daily_weight_source", "figure"),
+    [Input('submit-button', 'n_clicks'), Input("time_df", "children")],
     [State("date-picker-range", "start_date"),
      State("date-picker-range", "end_date")]
 )
-def width_source_callback(status, df, n_clicks, start_date, end_date):
+def weight_source_callback(n_clicks, df, start_date, end_date):
+    df = pd.read_json(df, orient="split")
+    exitweightperday = df.groupby('Date')['EXITWEIGHTMEAS'].sum().reset_index()
+    exitweightperday['EXITWEIGHTMEAS'] = np.round(exitweightperday.EXITWEIGHTMEAS / 1000)
+    return date_weight_source(exitweightperday)
+
+
+# update pie chart figure df updates
+@app.callback(
+    Output("width_source", "figure"),
+    [Input("time_df", "children"), Input('submit-button', 'n_clicks')],
+    [State("date-picker-range", "start_date"),
+     State("date-picker-range", "end_date")]
+)
+def width_source_callback(df, n_clicks, start_date, end_date):
     df = pd.read_json(df, orient="split")
     width_stats = df.groupby('ENTRYWIDTH')['EXITTHICK'].describe().reset_index()
     return width_source(width_stats)
@@ -486,4 +523,3 @@ def cleads_table_callback(df, n_clicks, start_date, end_date):
     )
 
     return datatable
-
